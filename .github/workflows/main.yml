@@ -1,0 +1,58 @@
+name: OTA Magisk Patcher
+
+on:
+  workflow_dispatch:
+    inputs:
+      URL:
+        required: true
+        default: 'https://bigota.d.miui.com/V14.0.8.0.TLFCNXM/miui_DITING_V14.0.8.0.TLFCNXM_2c3f0b1c25_13.0.zip'
+      MAGISK:
+        required: true
+        default: 'https://github.com/topjohnwu/Magisk/releases/download/v26.1/Magisk-v26.1.apk'
+      PATCH_PARTITION:
+        required: true
+        default: 'boot'
+      
+jobs:
+  build:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download OTA & Extract
+        run: |
+          sudo apt install -y rename
+          mkdir temp
+          cd temp
+          wget https://github.com/tobyxdd/android-ota-payload-extractor/releases/download/v1.1/android-ota-extractor-v1.1-linux-amd64.tar.gz -O tool.tar.gz
+          tar -zxvf tool.tar.gz
+          rm tool.tar.gz
+          chmod +x ./android-ota-extractor
+          wget "${{ github.event.inputs.URL }}" -O OTA.zip
+          ./android-ota-extractor ./OTA.zip ${{ github.event.inputs.PATCH_PARTITION }}
+          cd ..
+          mkdir magisk
+          cp temp/${{ github.event.inputs.PATCH_PARTITION }}.img magisk/${{ github.event.inputs.PATCH_PARTITION }}.img
+
+      - name: Download Magisk & Patch
+        run: |
+          cd magisk
+          wget "${{ github.event.inputs.MAGISK }}" -O Magisk.zip
+          unzip Magisk.zip >> /dev/null
+          cd ./lib/x86_64
+          rename 's/(lib|\.so)//g' *
+          cd ../../
+          mv ./lib/x86_64/* ./assets
+          chmod -R a+x ./assets/*
+          cd assets
+          bash ./boot_patch.sh ../${{ github.event.inputs.PATCH_PARTITION }}.img
+
+      - name: Upload
+        uses: softprops/action-gh-release@v1
+        with:
+          files: | 
+            magisk/assets/*.img
+          name: Magisk_Patched_${{ github.run_id }}
+          tag_name: ${{ github.run_id }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
