@@ -21,14 +21,14 @@ jobs:
     steps:
       - name: Download OTA & Extract
         run: |
-          sudo apt install -y rename
+          sudo apt install -y rename aria2
           mkdir temp
           cd temp
           wget https://github.com/tobyxdd/android-ota-payload-extractor/releases/download/v1.1/android-ota-extractor-v1.1-linux-amd64.tar.gz -O tool.tar.gz
           tar -zxvf tool.tar.gz
           rm tool.tar.gz
           chmod +x ./android-ota-extractor
-          wget "${{ github.event.inputs.URL }}" -O OTA.zip
+          aria2c -x 8 -d . -o OTA.zip "${{ github.event.inputs.URL }}"
           ./android-ota-extractor ./OTA.zip ${{ github.event.inputs.PATCH_PARTITION }}
           cd ..
           mkdir magisk
